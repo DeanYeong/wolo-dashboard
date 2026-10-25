@@ -19,8 +19,8 @@ export default function BarChart({ bars, title }: { bars: Bar[]; title: string }
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={title}>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#e3ddd0" />
-            <text x={L - 6} y={y(t) + 4} fontSize="11" textAnchor="end" fill="#6b6b66">{rmCompact(t)}</text>
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="#eceae3" />
+            <text x={L - 6} y={y(t) + 4} fontSize="11" textAnchor="end" fill="#7a7a74">{rmCompact(t)}</text>
           </g>
         ))}
         {bars.map((b, i) => {
@@ -30,12 +30,12 @@ export default function BarChart({ bars, title }: { bars: Bar[]; title: string }
             <g key={b.label + i} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
               <rect x={L + i * step} y={T} width={step} height={H - T - B} fill="transparent" />
               {has ? (
-                <rect x={x} y={y(b.value!)} width={bw} height={Math.max(0, y(0) - y(b.value!))} fill={hover === i ? "#002fa8" : "#0047ff"} />
+                <rect x={x} y={y(b.value!)} width={bw} height={Math.max(0, y(0) - y(b.value!))} rx={5} fill={hover === i ? "#0039d1" : "#0047ff"} fillOpacity={hover === i ? 1 : 0.88} />
               ) : (
-                <rect x={x} y={y(0) - 14} width={bw} height={14} fill="none" stroke="#b9b2a2" strokeDasharray="3 3" />
+                <rect x={x} y={y(0) - 14} width={bw} height={14} fill="none" stroke="#c9c6bb" rx={5} strokeDasharray="3 3" />
               )}
               {(bars.length <= 8 || i % 2 === bars.length % 2) && (
-                <text x={x + bw / 2} y={H - 8} fontSize="11" textAnchor="middle" fill="#6b6b66">{b.label}</text>
+                <text x={x + bw / 2} y={H - 8} fontSize="11" textAnchor="middle" fill="#7a7a74">{b.label}</text>
               )}
             </g>
           );
@@ -45,7 +45,7 @@ export default function BarChart({ bars, title }: { bars: Bar[]; title: string }
         <div
           style={{
             position: "absolute", top: 0, left: `${((L + hover * step + step / 2) / W) * 100}%`, transform: "translateX(-50%)",
-            background: "#fff", border: "1px solid #e3ddd0", padding: "4px 8px", fontSize: 12, pointerEvents: "none", whiteSpace: "nowrap",
+            background: "#fff", border: "1px solid #eceae3", borderRadius: 10, boxShadow: "0 4px 14px rgba(20,20,10,.08)", padding: "6px 10px", fontSize: 12, pointerEvents: "none", whiteSpace: "nowrap",
           }}
         >
           {bars[hover].label}: {bars[hover].value === null ? "not submitted" : rm(bars[hover].value)}

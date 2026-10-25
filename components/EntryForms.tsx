@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { mondayOf, monthStartOf, weekLabel, addDays, FLOW_KEYS, type FlowKey, type MonthlyRow, type WeeklyRow } from "@/lib/calc";
 
@@ -26,9 +27,8 @@ const WEEKLY_KEYS: readonly FlowKey[] = FLOW_KEYS.filter((k) => k !== "other_rev
 
 const toStr = (v: unknown) => (v === null || v === undefined ? "" : String(v));
 
-export default function EntryForms({ weekly, monthly, today }: { weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string }) {
+export default function EntryForms({ mode, weekly, monthly, today }: { mode: "weekly" | "monthly"; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"weekly" | "monthly">("weekly");
   const [weekStart, setWeekStart] = useState(addDays(mondayOf(today), -7)); // default: last finished week
   const [monthStart, setMonthStart] = useState(monthStartOf(addDays(monthStartOf(today), -1))); // default: last finished month
   const [form, setForm] = useState<Record<string, string>>({});
@@ -79,20 +79,15 @@ export default function EntryForms({ weekly, monthly, today }: { weekly: WeeklyR
           });
     setBusy(false);
     if (error) setStatus({ ok: false, msg: `Could not save: ${error.message}` });
-    else { setStatus({ ok: true, msg: existing ? "Entry updated" : "Entry saved" }); router.refresh(); }
+    else { setStatus({ ok: true, msg: `${mode === "weekly" ? "Week of " + weekLabel(weekStart) : monthStart.slice(0, 7)} ${existing ? "updated" : "saved"}.` }); router.refresh(); }
   }
 
   return (
-    <section className="card" id="enter">
-      <div className="top" style={{ marginBottom: 10 }}>
-        <p className="eyebrow" style={{ margin: 0 }}>Enter numbers</p>
-        <div className="seg" role="group" aria-label="Entry type">
-          <button type="button" aria-pressed={mode === "weekly"} onClick={() => setMode("weekly")}>Weekly</button>
-          <button type="button" aria-pressed={mode === "monthly"} onClick={() => setMode("monthly")}>Monthly</button>
-        </div>
-      </div>
+    <>
+      <h2 className="section-title">{mode === "weekly" ? "Weekly numbers" : "Monthly numbers"}</h2>
+      <p className="lead">{mode === "weekly" ? "One entry per week, Monday to Sunday. Shopify and Shopee only." : "One entry per calendar month. This is the official record that quarters and years add up."}</p>
       <form onSubmit={save}>
-        <div className="row" style={{ marginBottom: 12 }}>
+        <div className="row" style={{ marginBottom: 20, alignItems: "flex-end" }}>
           {mode === "weekly" ? (
             <label style={{ width: 220 }}>Any date in the week
               <input type="date" value={weekStart} onChange={(e) => e.target.value && setWeekStart(mondayOf(e.target.value))} />
@@ -128,12 +123,16 @@ export default function EntryForms({ weekly, monthly, today }: { weekly: WeeklyR
             </FieldGroup>
           )}
         </div>
-        <div className="row" style={{ marginTop: 14 }}>
-          <button className="btn" disabled={busy}>{busy ? "Saving…" : existing ? "Update entry" : "Save entry"}</button>
-          {status && <p className={status.ok ? "ok" : "err"} role="status">{status.msg}</p>}
+        <div className="form-foot">
+          <button className="btn" disabled={busy}>{busy ? "Saving…" : existing ? "Save changes" : "Save entry"}</button>
+          {status && (
+            <p className={status.ok ? "ok" : "err"} role="status">
+              {status.msg} {status.ok && <Link href="/">View dashboard</Link>}
+            </p>
+          )}
         </div>
       </form>
-    </section>
+    </>
   );
 }
 
