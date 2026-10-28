@@ -36,6 +36,10 @@ const TILES: Tile[] = [
     get: (p, fee) => (p.flows ? derive(p.flows, fee).shopeeGpPerAd : null), fmt: times, delta: "pct",
   },
   {
+    id: "totalGp", title: "Total gross profit / ad spend", short: "Total GP / Ad", note: "Gross profit ÷ all ad spend and affiliate",
+    get: (p, fee) => (p.flows ? derive(p.flows, fee).totalGpPerAd : null), fmt: times, delta: "pct",
+  },
+  {
     id: "cm", title: "Total contribution margin (est.)", short: "Total CM", note: "Revenue less est. fees, COGS, ads and commission",
     get: (p, fee) => (p.flows ? derive(p.flows, fee).contribution : null), fmt: rm, delta: "pct",
   },
@@ -55,6 +59,8 @@ export default function Dashboard({ role, email, settings, targets, weekly, mont
   const router = useRouter();
   const [view, setView] = useState<View>("monthly");
   const fee = settings.fee_rate;
+  // Cash conversion cycle and cash in bank are month-end figures, so they appear on the Monthly view only.
+  const tiles = TILES.filter((t) => !t.monthlyOnly || view === "monthly");
   const canEdit = role === "editor";
   const periods = buildPeriods(view, weekly, monthly, today);
   const missing = missingCompleted(view, periods, today);
@@ -137,7 +143,7 @@ export default function Dashboard({ role, email, settings, targets, weekly, mont
           </div>
         </div>
         {(view === "quarterly" || view === "yearly") && (
-          <p className="muted small" style={{ marginTop: 0 }}>Added up from monthly entries. Ratios use the sums, and cash and CCC are the period’s latest month.</p>
+          <p className="muted small" style={{ marginTop: 0 }}>Added up from monthly entries. Ratios use the sums.</p>
         )}
         {missing && <p className="banner">{view === "weekly" ? `Week of ${missing.label}` : missing.label} has not been submitted yet.</p>}
         {!latest && <p className="empty">No {view === "weekly" ? "weekly" : "monthly"} entries yet.{canEdit && <> <Link href="/update">Add the first one</Link></>}</p>}
@@ -146,13 +152,12 @@ export default function Dashboard({ role, email, settings, targets, weekly, mont
           <>
             <p className="muted small">Showing {latest.label}{partial(latest) ? ` (${latest.monthsIn} of ${latest.monthsExpected} months entered)` : ""}, against {previous ? previous.label : "no earlier period"}.</p>
             <div className="tiles">
-              {TILES.map((t) => {
+              {tiles.map((t) => {
                 const cur = t.get(latest, fee);
                 const prev = previous ? t.get(previous, fee) : null;
-                const blocked = t.monthlyOnly && view === "weekly";
                 let delta = "";
                 let cls = "";
-                if (!blocked && cur !== null && prev !== null) {
+                if (cur !== null && prev !== null) {
                   const d = t.delta === "abs" ? cur - prev : prev !== 0 ? (cur - prev) / Math.abs(prev) : NaN;
                   if (Number.isFinite(d)) {
                     delta = t.delta === "abs" ? `${d >= 0 ? "+" : "−"}${Math.abs(d)} days` : pct(d);
@@ -162,9 +167,8 @@ export default function Dashboard({ role, email, settings, targets, weekly, mont
                 return (
                   <div className="tile" key={t.id}>
                     <h3>{t.title}</h3>
-                    {t.monthlyOnly && <span className="tag">Monthly only</span>}
-                    <div className="v">{blocked ? "—" : t.fmt(cur)}</div>
-                    <div className={`d ${cls}`}>{blocked ? "Switch to Monthly" : delta ? `${delta} vs ${previous?.label}` : ""}</div>
+                    <div className="v">{t.fmt(cur)}</div>
+                    <div className={`d ${cls}`}>{delta ? `${delta} vs ${previous?.label}` : ""}</div>
                     <div className="muted small">{t.id === "cm" && view === "weekly" ? "Shopify + Shopee only" : t.note}</div>
                   </div>
                 );
@@ -188,15 +192,15 @@ export default function Dashboard({ role, email, settings, targets, weekly, mont
           <div className="scroll" style={{ marginTop: 12 }}>
             <table>
               <thead>
-                <tr><th>Period</th><th>Revenue</th>{TILES.map((t) => <th key={t.id}>{t.short}</th>)}</tr>
+                <tr><th>Period</th><th>Revenue</th>{tiles.map((t) => <th key={t.id}>{t.short}</th>)}</tr>
               </thead>
               <tbody>
                 {[...periods].reverse().map((p) => (
                   <tr key={p.key}>
                     <td>{p.label}{partial(p) ? "*" : ""}</td>
                     <td>{p.flows ? rm(derive(p.flows, fee).revenue) : "not submitted"}</td>
-                    {TILES.map((t) => (
-                      <td key={t.id}>{p.entered && !(t.monthlyOnly && view === "weekly") ? t.fmt(t.get(p, fee)) : "—"}</td>
+                    {tiles.map((t) => (
+                      <td key={t.id}>{p.entered ? t.fmt(t.get(p, fee)) : "—"}</td>
                     ))}
                   </tr>
                 ))}

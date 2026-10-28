@@ -93,3 +93,14 @@ test("target years keep past goals and always include the current year", () => {
   assert.deepEqual(targetYears([], 2026), [2026]);
   assert.deepEqual(targetYears([{ year: 2026, amount: 1 }], 2026), [2026]);
 });
+
+test("total gross profit / ad spend uses every channel and all ad spend plus affiliate", () => {
+  const f = toFlows({
+    shopify_revenue: 10000, shopee_revenue: 4000, other_revenue: 1000,
+    shopify_cogs: 2000, shopee_cogs: 1000, other_cogs: 200,
+    meta_spend: 2000, google_spend: 500, shopee_ads: 400, affiliate: 500,
+  });
+  // (15000 - 3200) / (2000 + 500 + 400 + 500)
+  near(derive(f, 0.1).totalGpPerAd, 11800 / 3400);
+  assert.equal(derive(toFlows({ shopify_revenue: 100 }), 0.1).totalGpPerAd, null);
+});

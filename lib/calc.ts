@@ -91,6 +91,7 @@ export type Derived = {
   revenue: number;
   shopifyGpPerAd: number | null; // (Shopify revenue - Shopify COGS) / (Meta + Google + affiliate)
   shopeeGpPerAd: number | null; // (Shopee revenue - Shopee COGS) / Shopee ads
+  totalGpPerAd: number | null; // (total revenue - total COGS) / (Meta + Google + Shopee ads + affiliate)
   contribution: number; // revenue*(1-fee) - COGS - Meta - Google - Shopee ads - affiliate
 };
 
@@ -103,6 +104,7 @@ export function derive(f: Flows, feeRate: number): Derived {
     revenue,
     shopifyGpPerAd: ratio(f.shopify_revenue - f.shopify_cogs, shopifyAd),
     shopeeGpPerAd: ratio(f.shopee_revenue - f.shopee_cogs, f.shopee_ads),
+    totalGpPerAd: ratio(revenue - cogs, shopifyAd + f.shopee_ads),
     contribution:
       revenue * (1 - feeRate) - cogs - f.meta_spend - f.google_spend - f.shopee_ads - f.affiliate,
   };

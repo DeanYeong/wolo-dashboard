@@ -20,9 +20,10 @@ One-page company dashboard. Owners type in weekly and monthly numbers; everyone 
 - Total revenue = Shopify + Shopee + Other revenue
 - Shopify gross profit / ad spend = (Shopify revenue − Shopify COGS) ÷ (Meta + Google + affiliate commission)
 - Shopee gross profit / ad spend = (Shopee revenue − Shopee COGS) ÷ Shopee ad spend
+- Total gross profit / ad spend = (total revenue − total COGS) ÷ (Meta + Google + Shopee ads + affiliate commission)
 - Total contribution margin (est.) = total revenue × (1 − fee rate) − total COGS − Meta − Google − Shopee ads − affiliate commission. The fee rate defaults to 10% and is editable.
 - Quarter and year ratios are computed from summed amounts, never by averaging monthly ratios.
-- Quarter and year cash and cash conversion cycle are the period's latest month (they are balances, so they are not added).
+- Cash conversion cycle and cash in bank are month-end figures, so they appear on the Monthly view only (cards and table).
 - Weekly contribution margin covers Shopify and Shopee only (weekly has no "other" fields).
 - Target progress = sum of monthly total revenue in a year ÷ that year's target. Targets are stored one row per year, so setting 2027 never replaces 2026. The dashboard opens on the current year and lets you switch between years that have a target.
 
