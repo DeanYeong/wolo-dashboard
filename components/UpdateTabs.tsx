@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import EntryForms from "./EntryForms";
 import SettingsForm, { type Settings } from "./SettingsForm";
+import Footer from "./Footer";
 import type { MonthlyRow, WeeklyRow } from "@/lib/calc";
 
 type Tab = "weekly" | "monthly" | "settings";
@@ -33,12 +34,14 @@ export default function UpdateTabs({ settings, weekly, monthly, today, email }: 
         </div>
         <section className="card">
           {tab === "settings" ? (
-            <SettingsForm settings={settings} />
+            <SettingsForm settings={settings} currentYear={Number(today.slice(0, 4))} />
           ) : (
             <EntryForms key={tab} mode={tab} weekly={weekly} monthly={monthly} today={today} />
           )}
         </section>
       </div>
+
+      <Footer values={settings.core_values} />
     </div>
   );
 }

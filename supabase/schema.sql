@@ -29,10 +29,13 @@ create table if not exists public.settings (
   id int primary key default 1 check (id = 1),
   vision text not null default '',
   core_values jsonb not null default '[{"t":"","d":""},{"t":"","d":""},{"t":"","d":""},{"t":"","d":""}]',
-  target_2027 numeric,
+  target_2027 numeric, -- annual revenue target amount (column name is historical)
   fee_rate numeric not null default 0.10 check (fee_rate >= 0 and fee_rate < 1),
   updated_at timestamptz not null default now()
 );
+-- Year the annual revenue target applies to; blank means the current year.
+alter table public.settings add column if not exists target_year int check (target_year between 2000 and 2100);
+
 insert into public.settings (id) values (1) on conflict do nothing;
 
 -- ---------- weekly entries (week_start is the Monday) ----------

@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Settings } from "@/components/SettingsForm";
+import type { Settings, ValueItem } from "@/components/SettingsForm";
 import type { MonthlyRow, WeeklyRow } from "@/lib/calc";
 
 export type Loaded =
   | { error: string }
   | { role: "editor" | "viewer"; email: string; settings: Settings; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string };
+
+const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
 // Shared by the dashboard and the Update page: who is signed in, and all stored data.
 export async function loadAll(): Promise<Loaded> {
@@ -13,24 +15,32 @@ export async function loadAll(): Promise<Loaded> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
+  const getSettings = async () => {
+    const full = await supabase.from("settings").select("vision, core_values, target_2027, target_year, fee_rate").eq("id", 1).maybeSingle();
+    if (!full.error) return full;
+    // A database set up before target_year existed: keep everything else working.
+    return supabase.from("settings").select("vision, core_values, target_2027, fee_rate").eq("id", 1).maybeSingle();
+  };
+
   const [profile, settings, weekly, monthly] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", auth.user.id).maybeSingle(),
-    supabase.from("settings").select("vision, core_values, target_2027, fee_rate").eq("id", 1).maybeSingle(),
+    getSettings(),
     supabase.from("weekly_entries").select("*").order("week_start"),
     supabase.from("monthly_entries").select("*").order("month_start"),
   ]);
   const failed = [settings.error, weekly.error, monthly.error].find(Boolean);
   if (failed) return { error: failed.message };
 
-  const s = settings.data;
+  const s = (settings.data ?? {}) as Record<string, unknown>;
   return {
     role: profile.data?.role === "editor" ? "editor" : "viewer",
     email: auth.user.email ?? "",
     settings: {
-      vision: s?.vision ?? "",
-      core_values: (s?.core_values as Settings["core_values"]) ?? [],
-      target_2027: s?.target_2027 === null || s?.target_2027 === undefined ? null : Number(s.target_2027),
-      fee_rate: s?.fee_rate === undefined ? 0.1 : Number(s.fee_rate),
+      vision: typeof s.vision === "string" ? s.vision : "",
+      core_values: Array.isArray(s.core_values) ? (s.core_values as ValueItem[]) : [],
+      target_2027: num(s.target_2027),
+      target_year: num(s.target_year),
+      fee_rate: num(s.fee_rate) ?? 0.1,
     },
     weekly: (weekly.data ?? []) as WeeklyRow[],
     monthly: (monthly.data ?? []) as MonthlyRow[],

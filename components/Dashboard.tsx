@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import BarChart from "./BarChart";
+import Footer from "./Footer";
 import type { Settings } from "./SettingsForm";
 import { buildPeriods, derive, missingCompleted, paceShare, yearToDate, type MonthlyRow, type Period, type View, type WeeklyRow } from "@/lib/calc";
 import { days, pct, rm, share, times } from "@/lib/format";
@@ -14,6 +15,7 @@ type Props = { role: "editor" | "viewer"; email: string; settings: Settings; wee
 type Tile = {
   id: string;
   title: string;
+  short: string; // compact name for the table header
   note: string;
   monthlyOnly?: boolean;
   lowerIsBetter?: boolean;
@@ -23,22 +25,22 @@ type Tile = {
 };
 
 const TILES: Tile[] = [
-  { id: "shopify", title: "Shopify revenue", note: "Total sales", get: (p) => p.flows?.shopify_revenue ?? null, fmt: rm, delta: "pct" },
-  { id: "shopee", title: "Shopee revenue", note: "Total sales", get: (p) => p.flows?.shopee_revenue ?? null, fmt: rm, delta: "pct" },
+  { id: "shopify", title: "Shopify revenue", short: "Shopify", note: "Total sales", get: (p) => p.flows?.shopify_revenue ?? null, fmt: rm, delta: "pct" },
+  { id: "shopee", title: "Shopee revenue", short: "Shopee", note: "Total sales", get: (p) => p.flows?.shopee_revenue ?? null, fmt: rm, delta: "pct" },
   {
-    id: "shopifyGp", title: "Shopify gross profit / ad spend", note: "Gross profit ÷ (Meta + Google + affiliate)",
+    id: "shopifyGp", title: "Shopify gross profit / ad spend", short: "Shopify GP / Adspend", note: "Gross profit ÷ (Meta + Google + affiliate)",
     get: (p, fee) => (p.flows ? derive(p.flows, fee).shopifyGpPerAd : null), fmt: times, delta: "pct",
   },
   {
-    id: "shopeeGp", title: "Shopee gross profit / ad spend", note: "Gross profit ÷ Shopee ads",
+    id: "shopeeGp", title: "Shopee gross profit / ad spend", short: "Shopee GP / Adspend", note: "Gross profit ÷ Shopee ads",
     get: (p, fee) => (p.flows ? derive(p.flows, fee).shopeeGpPerAd : null), fmt: times, delta: "pct",
   },
   {
-    id: "cm", title: "Total contribution margin (est.)", note: "Revenue less est. fees, COGS, ads and commission",
+    id: "cm", title: "Total contribution margin (est.)", short: "Total CM", note: "Revenue less est. fees, COGS, ads and commission",
     get: (p, fee) => (p.flows ? derive(p.flows, fee).contribution : null), fmt: rm, delta: "pct",
   },
-  { id: "ccc", title: "Cash conversion cycle", note: "Days, latest month", monthlyOnly: true, lowerIsBetter: true, get: (p) => p.ccc, fmt: days, delta: "abs" },
-  { id: "cash", title: "Cash in bank, end of month", note: "Latest month end", monthlyOnly: true, get: (p) => p.cash, fmt: rm, delta: "pct" },
+  { id: "ccc", title: "Cash conversion cycle", short: "CCC", note: "Days, latest month", monthlyOnly: true, lowerIsBetter: true, get: (p) => p.ccc, fmt: days, delta: "abs" },
+  { id: "cash", title: "Cash in bank, end of month", short: "EOM Cash", note: "Latest month end", monthlyOnly: true, get: (p) => p.cash, fmt: rm, delta: "pct" },
 ];
 
 const VIEWS: { id: View; label: string }[] = [
@@ -60,11 +62,12 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
   const latest = entered[entered.length - 1];
   const previous = entered[entered.length - 2];
 
-  const ytd = yearToDate(monthly, 2027);
-  const target = settings.target_2027;
+  const thisYear = Number(today.slice(0, 4));
+  const year = settings.target_year ?? thisYear; // blank target year means the current year
+  const ytd = yearToDate(monthly, year);
+  const target = settings.target_2027; // annual revenue target (column name is historical)
   const progress = target ? ytd / target : null;
-  const pace = paceShare(today, 2027);
-  const values = settings.core_values.filter((v) => v.t.trim() || v.d.trim());
+  const pace = paceShare(today, year);
 
   async function signOut() {
     await createClient().auth.signOut();
@@ -97,26 +100,10 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
         )}
       </section>
 
-      <section aria-label="Core values">
-        <p className="eyebrow">Core values</p>
-        {values.length ? (
-          <div className="grid4">
-            {values.map((v, i) => (
-              <div className="val" key={i}>
-                <h3>{v.t || "Untitled"}</h3>
-                {v.d && <p>{v.d}</p>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="empty">Not written yet.{canEdit && <> <Link href="/update">Add them</Link></>}</p>
-        )}
-      </section>
-
       <section className="card" id="target">
-        <p className="eyebrow">2027 target · total revenue (Shopify + Shopee + other)</p>
+        <p className="eyebrow">{year} target · total revenue (Shopify + Shopee + other)</p>
         <div className="row">
-          <div className="stat"><div className="l">Revenue so far in 2027</div><div className="v">{rm(ytd)}</div></div>
+          <div className="stat"><div className="l">Revenue so far in {year}</div><div className="v">{rm(ytd)}</div></div>
           <div className="stat"><div className="l">Target</div><div className="v">{target ? rm(target) : "Not set"}</div></div>
           <div className="stat"><div className="l">Share of target</div><div className="v">{share(progress)}</div></div>
         </div>
@@ -125,7 +112,7 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
           {pace !== null && <b style={{ left: `${pace * 100}%` }} />}
         </div>
         <p className="muted small" style={{ margin: 0 }}>
-          {pace === null ? "Tracking starts on 1 Jan 2027, summed from monthly entries." : "The black line is where an even pace would be today."}
+          {pace !== null ? "The black line is where an even pace would be today." : year > thisYear ? `Tracking starts on 1 Jan ${year}, summed from monthly entries.` : `${year} has ended. The total is the sum of its monthly entries.`}
         </p>
       </section>
 
@@ -190,7 +177,7 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
           <div className="scroll" style={{ marginTop: 12 }}>
             <table>
               <thead>
-                <tr><th>Period</th><th>Revenue</th>{TILES.map((t) => <th key={t.id}>{t.title}</th>)}</tr>
+                <tr><th>Period</th><th>Revenue</th>{TILES.map((t) => <th key={t.id}>{t.short}</th>)}</tr>
               </thead>
               <tbody>
                 {[...periods].reverse().map((p) => (
@@ -208,6 +195,8 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
           {(view === "quarterly" || view === "yearly") && <p className="muted small">* Not every month in this period has been entered.</p>}
         </details>
       </section>
+
+      <Footer values={settings.core_values} editHref={canEdit ? "/update" : undefined} />
     </div>
   );
 }

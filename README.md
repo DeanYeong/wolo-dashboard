@@ -2,7 +2,7 @@
 
 One-page company dashboard. Owners type in weekly and monthly numbers; everyone signed in sees the same page.
 
-- **Editor** logins can enter and change numbers, the vision, core values, the 2027 target and the fee estimate.
+- **Editor** logins can enter and change numbers, the vision, core values, the annual revenue target (and its year) and the fee estimate.
 - **View only** logins can see everything and change nothing. This is enforced in the database (row level security), not just by hiding buttons.
 - Weekly and monthly are separate entries. Quarterly and yearly views add up the **monthly** entries.
 
@@ -24,7 +24,7 @@ One-page company dashboard. Owners type in weekly and monthly numbers; everyone 
 - Quarter and year ratios are computed from summed amounts, never by averaging monthly ratios.
 - Quarter and year cash and cash conversion cycle are the period's latest month (they are balances, so they are not added).
 - Weekly contribution margin covers Shopify and Shopee only (weekly has no "other" fields).
-- 2027 target progress = sum of monthly total revenue in calendar 2027 ÷ target.
+- Target progress = sum of monthly total revenue in the target year ÷ the annual target. The target year is a setting; left blank it means the current year.
 
 The maths is in `lib/calc.ts` with tests in `lib/calc.test.ts` (`npm test`).
 
@@ -56,8 +56,8 @@ git push -u origin main
 ### 3. Vercel
 1. **Add New > Project**, import the GitHub repo. Framework is detected as Next.js.
 2. Add environment variables (Production, Preview and Development):
-   - `NEXT_PUBLIC_SUPABASE_URL` = the Project URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the anon public key
+   - `SUPABASE_URL` (or `NEXT_PUBLIC_SUPABASE_URL`) = the Project URL
+   - `SUPABASE_ANON_KEY` (or `NEXT_PUBLIC_SUPABASE_ANON_KEY`) = the anon public key
 3. Deploy. Open the URL, sign in, and enter your first numbers.
 
 The anon key is meant to be public. Safety comes from the row level security rules in `schema.sql`, so do not skip step 2.2 and never put the `service_role` key in this app.
@@ -73,4 +73,7 @@ npm run dev
 - Re-entering a week or month replaces it (one row per period).
 - A finished week or month with no entry shows a "not submitted" banner and a dashed bar in the chart. It is never counted as zero.
 - To add or remove people, or change their role, use Supabase **Authentication > Users** and the `profiles` table.
-# wolo-dashboard
+
+## Updating an existing database
+
+If you set up Supabase before the target-year setting existed, run `supabase/migrations/20261028_target_year.sql` once in the SQL editor. Until you do, the dashboard still works and uses the current year, but saving a target year is refused.

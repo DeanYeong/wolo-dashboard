@@ -79,3 +79,11 @@ test("year to date and pace", () => {
   assert.equal(paceShare("2026-10-25", 2027), null);
   near(paceShare("2027-07-02", 2027), 182 / 365);
 });
+
+test("year to date and pace follow the chosen year", () => {
+  const monthly = [month("2026-03-01", 70, null, null), month("2026-04-01", 30, null, null), month("2027-01-01", 5, null, null)];
+  assert.equal(yearToDate(monthly, 2026), 100);
+  assert.equal(yearToDate(monthly, 2027), 5);
+  near(paceShare("2026-07-02", 2026), 182 / 365);
+  assert.equal(paceShare("2026-07-02", 2027), null);
+});

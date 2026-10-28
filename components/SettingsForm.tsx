@@ -6,16 +6,23 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export type ValueItem = { t: string; d: string };
-export type Settings = { vision: string; core_values: ValueItem[]; target_2027: number | null; fee_rate: number };
+export type Settings = {
+  vision: string;
+  core_values: ValueItem[];
+  target_2027: number | null; // annual revenue target amount (column name is historical)
+  target_year: number | null; // year the target applies to; null means the current year
+  fee_rate: number;
+};
 
 const pad = (v: ValueItem[]) => Array.from({ length: 4 }, (_, i) => v[i] ?? { t: "", d: "" });
 
-// Vision, core values, 2027 target and the fee estimate. Lives on the Update page, never on the dashboard.
-export default function SettingsForm({ settings }: { settings: Settings }) {
+// Vision, core values, the annual target and the fee estimate. Lives on the Update page, never on the dashboard.
+export default function SettingsForm({ settings, currentYear }: { settings: Settings; currentYear: number }) {
   const router = useRouter();
   const [vision, setVision] = useState(settings.vision);
   const [values, setValues] = useState(pad(settings.core_values));
   const [target, setTarget] = useState(settings.target_2027 ? String(settings.target_2027) : "");
+  const [year, setYear] = useState(settings.target_year ? String(settings.target_year) : "");
   const [fee, setFee] = useState(String(Math.round(settings.fee_rate * 1000) / 10));
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,6 +32,11 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
     setStatus(null);
     const feeNum = Number(fee);
     if (!(feeNum >= 0 && feeNum < 100)) { setStatus({ ok: false, msg: "Fee estimate must be between 0 and 100%." }); return; }
+    const yearNum = year.trim() ? Number(year.trim()) : null;
+    if (yearNum !== null && !(Number.isInteger(yearNum) && yearNum >= 2000 && yearNum <= 2100)) {
+      setStatus({ ok: false, msg: "Target year must be a year like 2027, or blank for the current year." });
+      return;
+    }
     const targetNum = Number(target.replace(/[^0-9.]/g, ""));
     setBusy(true);
     const { error } = await createClient()
@@ -33,19 +45,30 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
         vision,
         core_values: values,
         target_2027: target.trim() && targetNum > 0 ? targetNum : null,
+        target_year: yearNum,
         fee_rate: feeNum / 100,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
     setBusy(false);
-    if (error) setStatus({ ok: false, msg: `Could not save: ${error.message}` });
-    else { setStatus({ ok: true, msg: "Saved." }); router.refresh(); }
+    if (error) {
+      const needsSql = error.message.includes("target_year");
+      setStatus({
+        ok: false,
+        msg: needsSql
+          ? "Could not save: the database needs one update. Run supabase/migrations/20261028_target_year.sql in the Supabase SQL editor, then save again."
+          : `Could not save: ${error.message}`,
+      });
+    } else {
+      setStatus({ ok: true, msg: "Saved." });
+      router.refresh();
+    }
   }
 
   return (
     <form onSubmit={save}>
       <h2 className="section-title">Vision, values and targets</h2>
-      <p className="lead">These appear at the top of the dashboard.</p>
+      <p className="lead">The vision and target appear on the dashboard. Core values appear in the footer of every page.</p>
 
       <label>3-year vision (display only, not tracked)
         <textarea className="vision-input" value={vision} onChange={(e) => setVision(e.target.value)}
@@ -64,9 +87,12 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
         ))}
       </div>
 
-      <p className="eyebrow" style={{ marginTop: 32 }}>Numbers</p>
+      <p className="eyebrow" style={{ marginTop: 32 }}>Annual revenue target</p>
       <div className="fields">
-        <label>2027 total revenue target (RM)
+        <label>Target year
+          <input inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} placeholder={`${currentYear} (blank = current year)`} />
+        </label>
+        <label>Total revenue target for that year (RM)
           <input inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} placeholder="e.g. 1200000" />
         </label>
         <label>Merchant and platform fee estimate (% of revenue)
@@ -74,7 +100,7 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
         </label>
       </div>
       <p className="muted small" style={{ margin: "10px 0 0" }}>
-        The fee rate is an estimate used in total contribution margin. Changing it restates every period, past ones included.
+        Progress adds up the monthly entries in the target year. The fee rate is an estimate used in total contribution margin; changing it restates every period, past ones included.
       </p>
 
       <div className="form-foot">
