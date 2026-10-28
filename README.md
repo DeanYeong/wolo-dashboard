@@ -2,7 +2,7 @@
 
 One-page company dashboard. Owners type in weekly and monthly numbers; everyone signed in sees the same page.
 
-- **Editor** logins can enter and change numbers, the vision, core values, the annual revenue target (and its year) and the fee estimate.
+- **Editor** logins can enter and change numbers, the vision, core values, the yearly revenue targets and the fee estimate.
 - **View only** logins can see everything and change nothing. This is enforced in the database (row level security), not just by hiding buttons.
 - Weekly and monthly are separate entries. Quarterly and yearly views add up the **monthly** entries.
 
@@ -24,7 +24,7 @@ One-page company dashboard. Owners type in weekly and monthly numbers; everyone 
 - Quarter and year ratios are computed from summed amounts, never by averaging monthly ratios.
 - Quarter and year cash and cash conversion cycle are the period's latest month (they are balances, so they are not added).
 - Weekly contribution margin covers Shopify and Shopee only (weekly has no "other" fields).
-- Target progress = sum of monthly total revenue in the target year ÷ the annual target. The target year is a setting; left blank it means the current year.
+- Target progress = sum of monthly total revenue in a year ÷ that year's target. Targets are stored one row per year, so setting 2027 never replaces 2026. The dashboard opens on the current year and lets you switch between years that have a target.
 
 The maths is in `lib/calc.ts` with tests in `lib/calc.test.ts` (`npm test`).
 
@@ -76,4 +76,4 @@ npm run dev
 
 ## Updating an existing database
 
-If you set up Supabase before the target-year setting existed, run `supabase/migrations/20261028_target_year.sql` once in the SQL editor. Until you do, the dashboard still works and uses the current year, but saving a target year is refused.
+If you set up Supabase before yearly targets existed, run `supabase/migrations/20261028_annual_targets.sql` once in the SQL editor. It creates the targets table and copies your existing target into it, so nothing is lost. (It also covers the earlier `20261028_target_year.sql`, which you can skip.) Until you run it, the dashboard keeps working with your existing single target, but adding more years is disabled.

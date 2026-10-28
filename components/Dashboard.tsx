@@ -7,10 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import BarChart from "./BarChart";
 import Footer from "./Footer";
 import type { Settings } from "./SettingsForm";
-import { buildPeriods, derive, missingCompleted, paceShare, yearToDate, type MonthlyRow, type Period, type View, type WeeklyRow } from "@/lib/calc";
+import { buildPeriods, derive, missingCompleted, paceShare, targetYears, yearToDate, type MonthlyRow, type Period, type Target, type View, type WeeklyRow } from "@/lib/calc";
 import { days, pct, rm, share, times } from "@/lib/format";
 
-type Props = { role: "editor" | "viewer"; email: string; settings: Settings; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string };
+type Props = { role: "editor" | "viewer"; email: string; settings: Settings; targets: Target[]; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string };
 
 type Tile = {
   id: string;
@@ -28,11 +28,11 @@ const TILES: Tile[] = [
   { id: "shopify", title: "Shopify revenue", short: "Shopify", note: "Total sales", get: (p) => p.flows?.shopify_revenue ?? null, fmt: rm, delta: "pct" },
   { id: "shopee", title: "Shopee revenue", short: "Shopee", note: "Total sales", get: (p) => p.flows?.shopee_revenue ?? null, fmt: rm, delta: "pct" },
   {
-    id: "shopifyGp", title: "Shopify gross profit / ad spend", short: "Shopify GP / Adspend", note: "Gross profit ÷ (Meta + Google + affiliate)",
+    id: "shopifyGp", title: "Shopify gross profit / ad spend", short: "Shopify GP / Ad", note: "Gross profit ÷ (Meta + Google + affiliate)",
     get: (p, fee) => (p.flows ? derive(p.flows, fee).shopifyGpPerAd : null), fmt: times, delta: "pct",
   },
   {
-    id: "shopeeGp", title: "Shopee gross profit / ad spend", short: "Shopee GP / Adspend", note: "Gross profit ÷ Shopee ads",
+    id: "shopeeGp", title: "Shopee gross profit / ad spend", short: "Shopee GP / Ad", note: "Gross profit ÷ Shopee ads",
     get: (p, fee) => (p.flows ? derive(p.flows, fee).shopeeGpPerAd : null), fmt: times, delta: "pct",
   },
   {
@@ -51,7 +51,7 @@ const VIEWS: { id: View; label: string }[] = [
 ];
 
 // Read-only for everyone. Numbers are entered on /update, which only editors can open.
-export default function Dashboard({ role, email, settings, weekly, monthly, today }: Props) {
+export default function Dashboard({ role, email, settings, targets, weekly, monthly, today }: Props) {
   const router = useRouter();
   const [view, setView] = useState<View>("monthly");
   const fee = settings.fee_rate;
@@ -63,9 +63,11 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
   const previous = entered[entered.length - 2];
 
   const thisYear = Number(today.slice(0, 4));
-  const year = settings.target_year ?? thisYear; // blank target year means the current year
+  const [pickedYear, setPickedYear] = useState<number | null>(null);
+  const years = targetYears(targets, thisYear);
+  const year = pickedYear ?? thisYear; // defaults to the current year; every year with a goal stays selectable
   const ytd = yearToDate(monthly, year);
-  const target = settings.target_2027; // annual revenue target (column name is historical)
+  const target = targets.find((t) => t.year === year)?.amount ?? null;
   const progress = target ? ytd / target : null;
   const pace = paceShare(today, year);
 
@@ -101,7 +103,16 @@ export default function Dashboard({ role, email, settings, weekly, monthly, toda
       </section>
 
       <section className="card" id="target">
-        <p className="eyebrow">{year} target · total revenue (Shopify + Shopee + other)</p>
+        <div className="top" style={{ marginBottom: 16 }}>
+          <p className="eyebrow" style={{ margin: 0 }}>{year} target · total revenue (Shopify + Shopee + other)</p>
+          {years.length > 1 && (
+            <div className="seg" role="group" aria-label="Target year">
+              {years.map((y) => (
+                <button key={y} aria-pressed={y === year} onClick={() => setPickedYear(y)}>{y}</button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="row">
           <div className="stat"><div className="l">Revenue so far in {year}</div><div className="v">{rm(ytd)}</div></div>
           <div className="stat"><div className="l">Target</div><div className="v">{target ? rm(target) : "Not set"}</div></div>

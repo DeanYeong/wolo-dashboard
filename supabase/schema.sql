@@ -29,14 +29,17 @@ create table if not exists public.settings (
   id int primary key default 1 check (id = 1),
   vision text not null default '',
   core_values jsonb not null default '[{"t":"","d":""},{"t":"","d":""},{"t":"","d":""},{"t":"","d":""}]',
-  target_2027 numeric, -- annual revenue target amount (column name is historical)
   fee_rate numeric not null default 0.10 check (fee_rate >= 0 and fee_rate < 1),
   updated_at timestamptz not null default now()
 );
--- Year the annual revenue target applies to; blank means the current year.
-alter table public.settings add column if not exists target_year int check (target_year between 2000 and 2100);
-
 insert into public.settings (id) values (1) on conflict do nothing;
+
+-- ---------- annual revenue targets: one row per year, so past goals are kept ----------
+create table if not exists public.annual_targets (
+  year int primary key check (year between 2000 and 2100),
+  amount numeric not null check (amount > 0),
+  updated_at timestamptz not null default now()
+);
 
 -- ---------- weekly entries (week_start is the Monday) ----------
 create table if not exists public.weekly_entries (
@@ -77,6 +80,7 @@ alter table public.profiles enable row level security;
 alter table public.settings enable row level security;
 alter table public.weekly_entries enable row level security;
 alter table public.monthly_entries enable row level security;
+alter table public.annual_targets enable row level security;
 
 drop policy if exists "read own profile" on public.profiles;
 create policy "read own profile" on public.profiles for select to authenticated using (id = auth.uid());
@@ -84,7 +88,7 @@ create policy "read own profile" on public.profiles for select to authenticated 
 do $$
 declare t text;
 begin
-  foreach t in array array['settings', 'weekly_entries', 'monthly_entries'] loop
+  foreach t in array array['settings', 'weekly_entries', 'monthly_entries', 'annual_targets'] loop
     execute format('drop policy if exists "read all" on public.%I', t);
     execute format('create policy "read all" on public.%I for select to authenticated using (true)', t);
     execute format('drop policy if exists "editors insert" on public.%I', t);

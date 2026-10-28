@@ -5,7 +5,7 @@ import Link from "next/link";
 import EntryForms from "./EntryForms";
 import SettingsForm, { type Settings } from "./SettingsForm";
 import Footer from "./Footer";
-import type { MonthlyRow, WeeklyRow } from "@/lib/calc";
+import type { MonthlyRow, Target, WeeklyRow } from "@/lib/calc";
 
 type Tab = "weekly" | "monthly" | "settings";
 const TABS: { id: Tab; label: string }[] = [
@@ -14,7 +14,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "settings", label: "Vision, values, targets" },
 ];
 
-export default function UpdateTabs({ settings, weekly, monthly, today, email }: { settings: Settings; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string; email: string }) {
+export default function UpdateTabs({ settings, targets, targetsReady, weekly, monthly, today, email }: { settings: Settings; targets: Target[]; targetsReady: boolean; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string; email: string }) {
   const [tab, setTab] = useState<Tab>("weekly");
   return (
     <div className="wrap">
@@ -34,7 +34,7 @@ export default function UpdateTabs({ settings, weekly, monthly, today, email }: 
         </div>
         <section className="card">
           {tab === "settings" ? (
-            <SettingsForm settings={settings} currentYear={Number(today.slice(0, 4))} />
+            <SettingsForm settings={settings} targets={targets} targetsReady={targetsReady} currentYear={Number(today.slice(0, 4))} />
           ) : (
             <EntryForms key={tab} mode={tab} weekly={weekly} monthly={monthly} today={today} />
           )}

@@ -1,11 +1,20 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Settings, ValueItem } from "@/components/SettingsForm";
-import type { MonthlyRow, WeeklyRow } from "@/lib/calc";
+import type { MonthlyRow, Target, WeeklyRow } from "@/lib/calc";
 
 export type Loaded =
   | { error: string }
-  | { role: "editor" | "viewer"; email: string; settings: Settings; weekly: WeeklyRow[]; monthly: MonthlyRow[]; today: string };
+  | {
+      role: "editor" | "viewer";
+      email: string;
+      settings: Settings;
+      targets: Target[];
+      targetsReady: boolean; // false until the annual_targets table exists in the database
+      weekly: WeeklyRow[];
+      monthly: MonthlyRow[];
+      today: string;
+    };
 
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
@@ -15,21 +24,30 @@ export async function loadAll(): Promise<Loaded> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login");
 
-  const getSettings = async () => {
-    const full = await supabase.from("settings").select("vision, core_values, target_2027, target_year, fee_rate").eq("id", 1).maybeSingle();
-    if (!full.error) return full;
-    // A database set up before target_year existed: keep everything else working.
-    return supabase.from("settings").select("vision, core_values, target_2027, fee_rate").eq("id", 1).maybeSingle();
-  };
-
-  const [profile, settings, weekly, monthly] = await Promise.all([
+  const [profile, settings, weekly, monthly, tgt] = await Promise.all([
     supabase.from("profiles").select("role").eq("id", auth.user.id).maybeSingle(),
-    getSettings(),
+    supabase.from("settings").select("vision, core_values, fee_rate").eq("id", 1).maybeSingle(),
     supabase.from("weekly_entries").select("*").order("week_start"),
     supabase.from("monthly_entries").select("*").order("month_start"),
+    supabase.from("annual_targets").select("year, amount").order("year"),
   ]);
   const failed = [settings.error, weekly.error, monthly.error].find(Boolean);
   if (failed) return { error: failed.message };
+
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+
+  let targets: Target[] = [];
+  const targetsReady = !tgt.error;
+  if (!tgt.error) {
+    targets = (tgt.data ?? []).map((r) => ({ year: Number(r.year), amount: Number(r.amount) })).filter((t) => t.amount > 0);
+  } else {
+    // Database not updated yet: keep showing the single target stored in the older settings columns.
+    let legacy = await supabase.from("settings").select("target_2027, target_year").eq("id", 1).maybeSingle();
+    if (legacy.error) legacy = await supabase.from("settings").select("target_2027").eq("id", 1).maybeSingle();
+    const row = (legacy.data ?? {}) as Record<string, unknown>;
+    const amount = num(row.target_2027);
+    if (amount && amount > 0) targets = [{ year: num(row.target_year) ?? Number(today.slice(0, 4)), amount }];
+  }
 
   const s = (settings.data ?? {}) as Record<string, unknown>;
   return {
@@ -38,13 +56,13 @@ export async function loadAll(): Promise<Loaded> {
     settings: {
       vision: typeof s.vision === "string" ? s.vision : "",
       core_values: Array.isArray(s.core_values) ? (s.core_values as ValueItem[]) : [],
-      target_2027: num(s.target_2027),
-      target_year: num(s.target_year),
       fee_rate: num(s.fee_rate) ?? 0.1,
     },
+    targets,
+    targetsReady,
     weekly: (weekly.data ?? []) as WeeklyRow[],
     monthly: (monthly.data ?? []) as MonthlyRow[],
-    today: new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" }),
+    today,
   };
 }
 

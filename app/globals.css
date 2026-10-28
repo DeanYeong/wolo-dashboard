@@ -110,3 +110,7 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); }
 .footer .grid4 { gap: 24px; }
 .footer .val h3 { font-size: 15px; }
 .footer .val p { font-size: 13px; }
+
+/* yearly targets list on the Update page */
+.target-row { display: grid; grid-template-columns: 140px 1fr auto; gap: 12px; align-items: end; margin-bottom: 12px; }
+@media (max-width: 560px) { .target-row { grid-template-columns: 1fr; } }

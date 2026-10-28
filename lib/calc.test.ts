@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildPeriods, derive, missingCompleted, mondayOf, paceShare, toFlows, yearToDate,
+  buildPeriods, derive, missingCompleted, mondayOf, paceShare, targetYears, toFlows, yearToDate,
   type MonthlyRow, type WeeklyRow,
 } from "./calc.ts";
 
@@ -86,4 +86,10 @@ test("year to date and pace follow the chosen year", () => {
   assert.equal(yearToDate(monthly, 2027), 5);
   near(paceShare("2026-07-02", 2026), 182 / 365);
   assert.equal(paceShare("2026-07-02", 2027), null);
+});
+
+test("target years keep past goals and always include the current year", () => {
+  assert.deepEqual(targetYears([{ year: 2027, amount: 1 }, { year: 2025, amount: 1 }], 2026), [2025, 2026, 2027]);
+  assert.deepEqual(targetYears([], 2026), [2026]);
+  assert.deepEqual(targetYears([{ year: 2026, amount: 1 }], 2026), [2026]);
 });

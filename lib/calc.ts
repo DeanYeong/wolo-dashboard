@@ -206,3 +206,11 @@ export function paceShare(today: string, year: number): number | null {
   const now = Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, Number(today.slice(8, 10)));
   return (now - start) / (end - start);
 }
+
+// ---------- yearly targets (one row per year, so past goals are kept) ----------
+export type Target = { year: number; amount: number };
+
+// Years the dashboard can show: every year with a target, plus the current year.
+export function targetYears(targets: Target[], thisYear: number): number[] {
+  return [...new Set([...targets.map((t) => t.year), thisYear])].sort((a, b) => a - b);
+}

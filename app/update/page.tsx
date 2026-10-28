@@ -9,5 +9,5 @@ export default async function UpdatePage() {
   const d = await loadAll();
   if ("error" in d) return <SetupNeeded message={d.error} />;
   if (d.role !== "editor") redirect("/");
-  return <UpdateTabs settings={d.settings} weekly={d.weekly} monthly={d.monthly} today={d.today} email={d.email} />;
+  return <UpdateTabs settings={d.settings} targets={d.targets} targetsReady={d.targetsReady} weekly={d.weekly} monthly={d.monthly} today={d.today} email={d.email} />;
 }
